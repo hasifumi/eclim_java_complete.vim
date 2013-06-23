@@ -5,60 +5,67 @@ let s:source = {
       \ }
  
 function! s:source.initialize()
-  let s:member = 'false'
-  let s:start = 0
 endfunction
  
 function! s:source.finalize()
 endfunction
  
 function! s:source.get_keyword_pos(cur_text)
-  let s:member = 'false'
+  if !eclim#project#util#IsCurrentFileInProject(0)
+    return a:cur_text ? -1 : []
+  endif
+
+  call eclim#lang#SilentUpdate(1)
+
 	let line = getline('.')
  
-	let s:start = col('.') - 1
-	" カーソルの左側にあるドットの位置を探す
-	while s:start >= 0
-		" ドットより先に空白文字かセミコロンが見つかった場合は補完をしない
-		if line[s:start] =~ '[\s;]'
-			let s:start = -1
-			break
-		endif
-		" ドットを見つけたらループ終了
-		if line[s:start-1] == '.'
-      let s:member = 'true'
-			break
-		endif
-		let s:start -= 1
-	endwhile
-	return s:start
+	let start = col('.') - 1
+
+  if line[start] == "." && line[start - 1] != "."
+    let start -= 1
+  endif
+
+  while start > 0 && line[start - 1] =~ '\w'
+    let start -= 1
+  endwhile
+
+	return start
 endfunction
  
 function! s:source.get_complete_words(cur_keyword_pos, cur_keyword_str)
-  if !exists('g:typescript_tools_started')
-    echo "typescript_tools not started. Enter command ':TSSstarthere'"
+  call eclim#lang#SilentUpdate(1)
+
+  let project = eclim#project#util#GetCurrentProjectName()
+  let file = eclim#lang#SilentUpdate(1,0)
+  if file == ''
     return []
   endif
-
-  if bufname('%') == ''
-   return []
+  let offset = eclim#util#GetOffset() + len(a:cur_keyword_str)
+  let encoding = eclim#util#GetEncoding()
+  if &completeopt !~ 'preview' && &completeopt =~ 'menu'
+    let layout = 'standard'
+  else
+    let layout = 'compact'
   endif
 
-  if &modified
-    call tss#update()
+  let complete_command = 
+        \ '-command java_complete'
+        \ ' -p ' . project . 
+        \ ' -f ' . file .
+        \ ' -o ' . offset .
+        \ ' -e ' . encoding .
+        \ ' -l ' . layout
+  echo complete_command
+
+  let completions = []
+  let response = eclim#Execute(complete_command)
+  if type(response) != g:DICT_TYPE
+    return
+  "else
+  "  echo response
   endif
 
-  let s:info = tss#cmd("completions ".s:member, {'col':s:start})
-
-  let s:result = []
-  if type(s:info) == type({})
-    for entry in s:info.entries
-      if entry['name'] =~ '^'.a:cur_keyword_str
-        call add(s:result, {'word': entry['name'], 'menu': entry['type']})
-      endif
-    endfor
-  endif
-  return s:result
+  return completions
 endfunction
 
 function! neocomplcache#sources#eclim_java_complete#define()
