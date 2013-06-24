@@ -58,7 +58,7 @@ function! s:source.get_complete_words(cur_keyword_pos, cur_keyword_str)
 
   let s:completions = []
   call add(s:completions, {'word': 'test', 'menu': 'test'})
-  let response = eclim#Execute(complete_command)
+  let response = eclim#Execute(s:complete_command)
   if type(response) != g:DICT_TYPE
     return
   else
