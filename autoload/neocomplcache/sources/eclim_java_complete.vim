@@ -49,22 +49,21 @@ function! s:source.get_complete_words(cur_keyword_pos, cur_keyword_str)
   endif
 
   let s:complete_command = 
-        \ '-command java_complete'
+        \ '-command java_complete' .
         \ ' -p ' . s:project . 
         \ ' -f ' . s:file .
         \ ' -o ' . s:offset .
         \ ' -e ' . s:encoding .
         \ ' -l ' . s:layout
-  "echo complete_command
 
   let s:completions = []
   call add(s:completions, {'word': 'test', 'menu': 'test'})
-  "let response = eclim#Execute(complete_command)
-  "if type(response) != g:DICT_TYPE
-  "  return
-  ""else
-  ""  echo response
-  "endif
+  let response = eclim#Execute(complete_command)
+  if type(response) != g:DICT_TYPE
+    return
+  else
+    echo response
+  endif
 
   return s:completions
 endfunction
