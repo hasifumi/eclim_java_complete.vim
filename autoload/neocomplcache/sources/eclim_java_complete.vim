@@ -57,13 +57,91 @@ function! s:source.get_complete_words(cur_keyword_pos, cur_keyword_str)
         \ ' -l ' . s:layout
 
   let s:completions = []
-  call add(s:completions, {'word': 'test', 'menu': 'test'})
+"  call add(s:completions, {'word': 'test', 'menu': 'test'})
   let response = eclim#Execute(s:complete_command)
   if type(response) != g:DICT_TYPE
     return
-  else
-    echo response
+"  else
+"    echo response
   endif
+
+"    if has_key(response, 'imports') && len(response.imports)
+"      let imports = response.imports
+"      if exists('g:TestEclimWorkspace') " allow this to be tested somewhat
+"        call eclim#java#complete#ImportThenComplete(imports)
+"      else
+"        let func = "eclim#java#complete#ImportThenComplete(" . string(imports) . ")"
+"        call feedkeys("\<c-e>\<c-r>=" . func . "\<cr>", 'n')
+"      endif
+"      " prevents supertab's completion chain from attempting the next
+"      " completion in the chain.
+"      return -1
+"    endif
+"
+  if has_key(response, 'error') && len(response.completions) == 0
+    "call eclim#util#EchoError(response.error.message)
+    "return -1
+    return
+  endif
+
+  " if the word has a '.' in it (like package completion) then we need to
+  " strip some off according to what is currently in the buffer.
+  let prefix = substitute(getline('.'),
+    \ '.\{-}\([[:alnum:].]\+\%' . col('.') . 'c\).*', '\1', '')
+
+  " as of eclipse 3.2 it will include the parens on a completion result even
+  " if the file already has them.
+  let open_paren = getline('.') =~ '\%' . col('.') . 'c\s*('
+  let close_paren = getline('.') =~ '\%' . col('.') . 'c\s*(\s*)'
+
+  " when completing imports, the completions include ending ';'
+  let semicolon = getline('.') =~ '\%' . col('.') . 'c\s*;'
+
+  for result in response.completions
+    let word = result.completion
+
+    " strip off prefix if necessary.
+    if word =~ '\.'
+      let word = substitute(word, prefix, '', '')
+    endif
+
+    " strip off close paren if necessary.
+    if word =~ ')$' && close_paren
+      let word = strpart(word, 0, strlen(word) - 1)
+    endif
+
+    " strip off open paren if necessary.
+    if word =~ '($' && open_paren
+      let word = strpart(word, 0, strlen(word) - 1)
+    endif
+
+    " strip off semicolon if necessary.
+    if word =~ ';$' && semicolon
+      let word = strpart(word, 0, strlen(word) - 1)
+    endif
+
+"      " if user wants case sensitivity, then filter out completions that don't
+"      " match
+"      if g:EclimJavaCompleteCaseSensitive && a:base != ''
+"        if word !~ '^' . a:base . '\C'
+"          continue
+"        endif
+"      endif
+"
+    let menu = result.menu
+    let info = eclim#html#util#HtmlToText(result.info)
+
+    let dict = {
+        \ 'word': word,
+        \ 'menu': menu,
+        \ 'info': info,
+        \ 'kind': result.type,
+        \ 'dup': 1,
+      \ }
+"        \ 'icase': !g:EclimJavaCompleteCaseSensitive,
+
+    call add(s:completions, dict)
+  endfor
 
   return s:completions
 endfunction
@@ -71,3 +149,24 @@ endfunction
 function! neocomplcache#sources#eclim_java_complete#define()
 	return s:source
 endfunction
+
+
+"" ImportThenComplete {{{
+"" Called by CodeComplete when the completion depends on a missing import.
+"function! eclim#java#complete#ImportThenComplete(choices)
+"  let choice = ''
+"  if len(a:choices) > 1
+"    let choice = eclim#java#import#ImportPrompt(a:choices)
+"  elseif len(a:choices)
+"    let choice = a:choices[0]
+"  endif
+"
+"  if choice != ''
+"    call eclim#java#import#Import(choice)
+"    call feedkeys("\<c-x>\<c-u>", 'tn')
+"  endif
+"  return ''
+"endfunction " }}}
+
+" vim:ft=vim:fdm=marker
+
