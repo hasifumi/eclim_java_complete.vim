@@ -12,7 +12,8 @@ endfunction
  
 function! s:source.get_keyword_pos(cur_text)
   if !eclim#project#util#IsCurrentFileInProject(0)
-    return a:cur_text ? -1 : []
+    "return a:cur_text ? -1 : []
+    return
   endif
 
   call eclim#lang#SilentUpdate(1)
