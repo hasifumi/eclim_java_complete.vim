@@ -5,6 +5,7 @@ let s:source = {
       \ }
  
 function! s:source.initialize()
+  "
 endfunction
  
 function! s:source.finalize()
